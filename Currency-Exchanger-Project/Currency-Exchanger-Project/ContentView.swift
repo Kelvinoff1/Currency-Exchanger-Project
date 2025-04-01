@@ -18,25 +18,56 @@ struct CurrencyCourse: Hashable, Codable {
     let rateSell: Double?
     let rateCross: Double?
     
-    func calculate(_ firstSum: Double, _ rateSell: Double?, _ rateCross: Double?, _ codeCurrency: Int, _ currencyCode: Int) -> Double? {
-            var result: Double? = 0
-            if codeCurrency == currencyCode {
-                if rateSell != nil {
-                    result = rateSell
-                } else {
-                    result = rateCross
-                }
-            }
-            return firstSum / (result ?? 1)
+    func calculate(_ firstSum: Double, _ rateSell: Double?, _ rateCross: Double?, _ fromCurrency: Int, _ toCurrency: Int, _ currencyCode: Int, _ courses: [CurrencyCourse]) -> Double? {
+        
+        var result: Double? = 0
+        var rateInUAH: Double? = 0
+        var toCurrencyRate: Double? = 0
+        
+        if let toCurrencyCourse = courses.first(where: { $0.currencyCodeA == toCurrency }) {
+            toCurrencyRate = toCurrencyCourse.rateSell ?? toCurrencyCourse.rateCross
         }
+        
+        if fromCurrency == toCurrency {
+            result = firstSum
+        }
+        
+        if fromCurrency == 980 { // не працює
+    
+                result = firstSum / (toCurrencyRate ?? 1)
+            
+        } else if fromCurrency != 980 {
+            if toCurrency != 980 {
+                
+                if rateSell != nil {
+                    rateInUAH = rateSell
+                } else {
+                    rateInUAH = rateCross
+                }
+                
+                result = firstSum * (rateInUAH ?? 1) / (toCurrencyRate ?? 1)
+            } else {
+                
+                if rateSell != nil {
+                    rateInUAH = rateSell
+                } else {
+                    rateInUAH = rateCross
+                }
+                
+                result = firstSum * (rateInUAH ?? 1)
+            }
+        }
+        
+        return result
+    }
 }
 
 struct ContentView: View {
     @StateObject var viewModel = ViewModel()
        var result: Double {
            var value: Double = 0.0
-           if let course = viewModel.courses.first(where: { $0.currencyCodeA == toCurrency }) {
-               value = course.calculate(firstSum, course.rateSell, course.rateCross, toCurrency, course.currencyCodeA) ?? 0.0
+           if let course = viewModel.courses.first(where: { $0.currencyCodeA == fromCurrency }) {
+               value = course.calculate(firstSum, course.rateSell, course.rateCross, fromCurrency, toCurrency, course.currencyCodeA, viewModel.courses) ?? 0.0
                
            }
            return value
@@ -61,7 +92,6 @@ struct ContentView: View {
                
 
                 Menu {
-                    Button("UAH | Українська гривня 🇺🇦", action: fromUAH)
                     Button("PLN | Польський злотий 🇵🇱", action: fromPLN)
                     Button("RON | Румунський лей 🇷🇴", action: fromRON)
                     Button("EUR | Євро 🇪🇺", action: fromEUR)
@@ -78,7 +108,7 @@ struct ContentView: View {
                 }.offset(x: 150, y: 69).foregroundColor(purpleColor)
 
                 Menu {
-                    Button("UAH | Українська гривня 🇺🇦", action: toUAH)
+                   
                     Button("PLN | Польський злотий 🇵🇱", action: toPLN)
                     Button("RON | Румунський лей 🇷🇴", action: toRON)
                     Button("EUR | Євро 🇪🇺", action: toEUR)
@@ -101,7 +131,7 @@ struct ContentView: View {
                                 .fill(purpleColor)
                                 .frame(height: 50)
 
-                            TextField("Введіть суму", value: $firstSum, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                            TextField("Введіть суму", value: $firstSum, format: .currency(code: ""))
                                 .disableAutocorrection(true)
                                 .keyboardType(.numberPad)
                                 .padding(.leading, 10)
@@ -144,70 +174,84 @@ struct ContentView: View {
                     Image(systemName: "chart.dots.scatter")
                 }.font(.largeTitle).offset(x: 80, y: 115).foregroundColor(.white)
                 
+                Button {
+                    reverse()
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }.font(.largeTitle).offset(x: -150, y: -380).foregroundStyle(purpleColor)
                 
-                RoundedRectangle(cornerRadius: 50).fill(purpleColor).frame(width: 150, height: 60).offset(x: 0, y:-195)
-                Button("Обміняти") {
-                    calculatedSum = firstSum * 0.024
-                }.font(.title2).offset(y: -250).foregroundColor(.white)
+//                Text(upperFlag).offset(x: -150, y: -440)
+//                    .font(.title)
+//                Text(lowerFlag).offset(x: -150, y: -360)
+//                    .font(.title)
             }
             .padding()
             .onAppear { viewModel.fetch() }
         }
     }
-
+    
+    func reverse() {
+        let forCurrency: Int = fromCurrency
+        let forFlag: String = upperFlag
+        
+        upperFlag = lowerFlag
+        lowerFlag = forFlag
+        
+        fromCurrency = toCurrency
+        toCurrency = forCurrency
+    }
     func fromUAH() {
-        lowerFlag = "🇺🇦"
-        fromCurrency = 0
+        upperFlag = "🇺🇦"
+        fromCurrency = 980
     }
     func fromPLN() {
-        lowerFlag = "🇵🇱"
-        fromCurrency = 2
+        upperFlag = "🇵🇱"
+        fromCurrency = 985
     }
     func fromRON() {
-        lowerFlag = "🇷🇴"
-        fromCurrency = 3
+        upperFlag = "🇷🇴"
+        fromCurrency = 946
     }
     func fromEUR() {
-        lowerFlag = "🇪🇺"
-        fromCurrency = 4
+        upperFlag = "🇪🇺"
+        fromCurrency = 978
     }
     func fromUSD() {
-        lowerFlag = "🇺🇸"
-        fromCurrency = 1
+        upperFlag = "🇺🇸"
+        fromCurrency = 840
     }
     func fromBYH() {
-        lowerFlag = "🇧🇾"
-        fromCurrency = 5
+        upperFlag = "🇧🇾"
+        fromCurrency = 933
     }
     func fromAUD() {
-        lowerFlag = "🇦🇺"
-        fromCurrency = 6
+        upperFlag = "🇦🇺"
+        fromCurrency = 036
     }
     func fromGBP() {
-        lowerFlag = "🇬🇧"
-        fromCurrency = 7
-    }
-    func fromCAD() {
-        lowerFlag = "🇨🇦"
-        fromCurrency = 8
-    }
-    func fromCNY() {
-        lowerFlag = "🇨🇳"
-        fromCurrency = 9
-    }
-    func fromJPY() {
-        lowerFlag = "🇯🇵"
-        fromCurrency = 10
+        upperFlag = "🇬🇧"
+        fromCurrency = 826
     }
     func fromCHF() {
         upperFlag = "🇨🇭"
         fromCurrency = 756
     }
-    
+    func fromCAD() {
+        upperFlag = "🇨🇦"
+        fromCurrency = 124
+    }
+    func fromCNY() {
+        upperFlag = "🇨🇳"
+        fromCurrency = 156
+    }
+    func fromJPY() {
+        upperFlag = "🇯🇵"
+        fromCurrency = 392
+    }
     
     func toUAH() {
         lowerFlag = "🇺🇦"
-        toCurrency = 780
+        toCurrency = 980
     }
     func toPLN() {
         lowerFlag = "🇵🇱"
@@ -237,6 +281,10 @@ struct ContentView: View {
         lowerFlag = "🇬🇧"
         toCurrency = 826
     }
+    func toCHF() {
+        lowerFlag = "🇨🇭"
+        toCurrency = 756
+    }
     func toCAD() {
         lowerFlag = "🇨🇦"
         toCurrency = 124
@@ -248,10 +296,6 @@ struct ContentView: View {
     func toJPY() {
         lowerFlag = "🇯🇵"
         toCurrency = 392
-    }
-    func toCHF() {
-        lowerFlag = "🇨🇭"
-        toCurrency = 756
     }
 }
 
